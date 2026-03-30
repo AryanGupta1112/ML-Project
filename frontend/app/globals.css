@@ -1,0 +1,21 @@
+@import "../styles/theme.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-manrope: "Manrope", "Segoe UI", sans-serif;
+}
+
+* {
+  @apply border-border;
+}
+
+body {
+  @apply bg-background text-foreground antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+::selection {
+  background: hsl(var(--primary) / 0.2);
+}
