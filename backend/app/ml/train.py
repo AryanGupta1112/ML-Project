@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,6 +49,22 @@ RAW_TO_CANONICAL = {
     "spore-print-color": "spore_print_color",
     "population": "population",
     "habitat": "habitat",
+}
+
+MODEL_DISPLAY_NAMES = {
+    "logistic_regression": "Logistic Regression",
+    "decision_tree": "Decision Tree",
+    "random_forest": "Random Forest",
+    "knn": "K-Nearest Neighbors (KNN)",
+    "svm": "Support Vector Machine (SVM)",
+}
+
+MODEL_PLAIN_EXPLANATIONS = {
+    "logistic_regression": "Learns weighted importance for each feature value.",
+    "decision_tree": "Builds if-then style decision rules.",
+    "random_forest": "Combines many trees to make a stronger final decision.",
+    "knn": "Compares each mushroom to similar examples from training data.",
+    "svm": "Finds the best boundary between safe-looking and risky patterns.",
 }
 
 
@@ -126,11 +143,29 @@ def _compute_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_prob: np.ndarray)
     }
 
 
+def _pct(value: float) -> str:
+    return f"{value * 100:.2f}%"
+
+
 def train_and_save_models(output_dir: Path | None = None) -> dict[str, Any]:
     output_path = output_dir or settings.model_artifacts_dir
     output_path.mkdir(parents=True, exist_ok=True)
 
+    print("\n" + "=" * 78, flush=True)
+    print("Smart Mushroom Toxicity Analysis - Training Started", flush=True)
+    print("=" * 78, flush=True)
+    print("This process learns patterns from labeled mushroom records.", flush=True)
+    print("Goal: estimate how likely a mushroom pattern is poisonous.", flush=True)
+
+    print("\nStep 1/4: Loading dataset from OpenML...", flush=True)
     dataset = load_mushroom_dataset()
+    print(
+        f"Loaded {dataset.x.shape[0]} records with {dataset.x.shape[1]} input features "
+        f"from '{dataset.source_name}'.",
+        flush=True,
+    )
+
+    print("\nStep 2/4: Splitting data into training and testing sets...", flush=True)
     x_train, x_test, y_train, y_test = train_test_split(
         dataset.x,
         dataset.y,
@@ -138,21 +173,39 @@ def train_and_save_models(output_dir: Path | None = None) -> dict[str, Any]:
         random_state=42,
         stratify=dataset.y,
     )
+    print(
+        f"Training set: {x_train.shape[0]} records | Testing set: {x_test.shape[0]} records",
+        flush=True,
+    )
 
     model_configs: dict[str, tuple[Any, bool]] = {
-        "logistic_regression": (LogisticRegression(max_iter=2500, C=2.0, random_state=42), True),
+        "logistic_regression": (
+            LogisticRegression(max_iter=300, C=2.0, solver="saga", verbose=1, random_state=42),
+            True,
+        ),
         "decision_tree": (DecisionTreeClassifier(max_depth=22, min_samples_leaf=1, random_state=42), False),
         "random_forest": (
-            RandomForestClassifier(n_estimators=450, max_depth=40, min_samples_split=2, random_state=42),
+            RandomForestClassifier(n_estimators=450, max_depth=40, min_samples_split=2, verbose=1, random_state=42),
             False,
         ),
         "knn": (KNeighborsClassifier(n_neighbors=5, weights="distance"), True),
-        "svm": (SVC(kernel="rbf", C=3.0, gamma="scale", probability=True, random_state=42), True),
+        "svm": (SVC(kernel="rbf", C=3.0, gamma="scale", probability=True, verbose=True, random_state=42), True),
     }
 
     metrics_by_model: dict[str, dict[str, float]] = {}
+    total_models = len(model_configs)
+    print(f"\nStep 3/4: Training {total_models} machine-learning models...", flush=True)
 
-    for model_name, (estimator, scale_numeric) in model_configs.items():
+    for idx, (model_name, (estimator, scale_numeric)) in enumerate(model_configs.items(), start=1):
+        display_name = MODEL_DISPLAY_NAMES.get(model_name, model_name)
+        simple_note = MODEL_PLAIN_EXPLANATIONS.get(model_name, "Model training in progress.")
+
+        print("\n" + "-" * 78, flush=True)
+        print(f"Model {idx}/{total_models}: {display_name}", flush=True)
+        print(f"How this model works (simple): {simple_note}", flush=True)
+        print("Status: Training started...", flush=True)
+
+        started = time.perf_counter()
         preprocessor = _build_preprocessor(scale_numeric=scale_numeric)
         pipeline = Pipeline(steps=[("preprocessor", preprocessor), ("model", estimator)])
         pipeline.fit(x_train, y_train)
@@ -162,12 +215,22 @@ def train_and_save_models(output_dir: Path | None = None) -> dict[str, Any]:
 
         metrics = _compute_metrics(y_test.to_numpy(), y_pred, y_prob)
         metrics_by_model[model_name] = metrics
+        elapsed = time.perf_counter() - started
+        print(f"Status: Finished in {elapsed:.2f} seconds.", flush=True)
+        print("Result summary (simple):", flush=True)
+        print(f"- Overall correctness (Accuracy): {_pct(metrics['accuracy'])}", flush=True)
+        print(f"- When model says poisonous, how often right (Precision): {_pct(metrics['precision'])}", flush=True)
+        print(f"- How many poisonous cases it catches (Recall): {_pct(metrics['recall'])}", flush=True)
+        print(f"- Balance between precision and recall (F1): {_pct(metrics['f1_score'])}", flush=True)
+        print(f"- Ranking quality across thresholds (ROC-AUC): {_pct(metrics['roc_auc'])}", flush=True)
 
         model_file = output_path / f"{model_name}.joblib"
         joblib.dump(pipeline, model_file)
+        print(f"Saved model file: {model_file}", flush=True)
 
     best_model = max(metrics_by_model, key=lambda name: metrics_by_model[name]["accuracy"])
     positive_rate = float(dataset.y.mean())
+    best_display_name = MODEL_DISPLAY_NAMES.get(best_model, best_model)
 
     feature_stats: dict[str, dict[str, Any]] = {}
     feature_value_target_rate: dict[str, dict[str, float]] = {}
@@ -210,6 +273,15 @@ def train_and_save_models(output_dir: Path | None = None) -> dict[str, Any]:
 
     with (output_path / "metadata.json").open("w", encoding="utf-8") as fp:
         json.dump(metadata, fp, indent=2)
+
+    print("\nStep 4/4: Saving final training metadata...", flush=True)
+    print(f"Metadata saved to: {output_path / 'metadata.json'}", flush=True)
+    print("\n" + "=" * 78, flush=True)
+    print("Training Complete", flush=True)
+    print("=" * 78, flush=True)
+    print(f"Best model on this training run: {best_display_name}", flush=True)
+    print(f"Poisonous class ratio in dataset: {_pct(positive_rate)}", flush=True)
+    print("You can now run the API and use this model in the dashboard.", flush=True)
 
     return metadata
 
