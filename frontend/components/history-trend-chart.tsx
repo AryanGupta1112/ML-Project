@@ -22,7 +22,7 @@ export function HistoryTrendChart({ items }: HistoryTrendChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Risk Trend (Last 30 Checks)</CardTitle>
+        <CardTitle>Safety Trend (Last 30 Checks)</CardTitle>
       </CardHeader>
       <CardContent className="h-72">
         <ResponsiveContainer width="100%" height="100%">
@@ -31,8 +31,8 @@ export function HistoryTrendChart({ items }: HistoryTrendChartProps) {
             <XAxis dataKey="timestamp" minTickGap={22} />
             <YAxis domain={[0, 100]} />
             <Tooltip />
-            <Line type="monotone" dataKey="risk_score" name="Risk score" stroke="#0ea5e9" strokeWidth={2} dot={false} />
-            <Line type="monotone" dataKey="probability" name="Chance (%)" stroke="#14b8a6" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="risk_score" name="Safety score" stroke="#0ea5e9" strokeWidth={2} dot={false} />
+            <Line type="monotone" dataKey="probability" name="Unsafe chance (%)" stroke="#14b8a6" strokeWidth={2} dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </CardContent>

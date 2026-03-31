@@ -31,9 +31,9 @@ def health_check() -> HealthResponse:
 
 
 @router.post("/predict", response_model=PredictionResponse)
-def predict(payload: PatientInput, db: Session = Depends(get_db)) -> PredictionResponse:
+def predict(payload: PatientInput, model_name: str | None = None, db: Session = Depends(get_db)) -> PredictionResponse:
     try:
-        result = model_service.predict(payload)
+        result = model_service.predict(payload, model_name=model_name)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Prediction failed: {exc}") from exc
 
@@ -68,15 +68,20 @@ def model_training_summary() -> TrainingSummaryResponse:
             generated_at = None
 
     return TrainingSummaryResponse(
-        dataset_source=str(metadata.get("dataset_source", "OpenML heart disease dataset (version 1)")),
+        dataset_source=str(metadata.get("dataset_source", "OpenML Mushroom (UCI)")),
         dataset_rows=int(metadata.get("dataset_rows", 0)),
         feature_count=len(metadata.get("feature_columns", [])),
         numeric_feature_count=len(metadata.get("numeric_features", [])),
         categorical_feature_count=len(metadata.get("categorical_features", [])),
         generated_at=generated_at,
         best_model=str(metadata.get("best_model", settings.default_model_name)),
+        active_inference_model=(
+            settings.inference_model_name.strip()
+            if settings.inference_model_name.strip()
+            else str(metadata.get("best_model", settings.default_model_name))
+        ),
         algorithms_trained=sorted(str(model_name) for model_name in metrics.keys()),
-        train_test_split="80% for training and 20% for testing (keeps both groups balanced)",
+        train_test_split="80% training / 20% testing with class-balanced stratification",
         training_library="scikit-learn",
         training_script="backend/app/ml/train.py",
         artifacts_dir=str(settings.model_artifacts_dir),
@@ -84,12 +89,12 @@ def model_training_summary() -> TrainingSummaryResponse:
 
 
 @router.post("/what-if", response_model=WhatIfResponse)
-def what_if_analysis(payload: WhatIfRequest, db: Session = Depends(get_db)) -> WhatIfResponse:
+def what_if_analysis(payload: WhatIfRequest, model_name: str | None = None, db: Session = Depends(get_db)) -> WhatIfResponse:
     if not model_service.ready:
         model_service.ensure_ready()
 
-    base_result = model_service.predict(payload.base_input)
-    modified_result = model_service.predict(payload.modified_input)
+    base_result = model_service.predict(payload.base_input, model_name=model_name)
+    modified_result = model_service.predict(payload.modified_input, model_name=model_name)
 
     create_history_record(db, payload.base_input.model_dump(), base_result)
     create_history_record(db, payload.modified_input.model_dump(), modified_result)
@@ -116,6 +121,7 @@ def feature_info() -> FeaturesInfoResponse:
             "min": stat["min"],
             "max": stat["max"],
             "description": stat["description"],
+            "allowed_values": stat.get("allowed_values", []),
         }
         for name, stat in stats.items()
     ]

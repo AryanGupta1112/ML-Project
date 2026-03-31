@@ -1,34 +1,28 @@
 import { z } from "zod";
 
-function numberField(label: string, min: number, max: number) {
-  return z
-    .number({ invalid_type_error: `${label} must be a number.` })
-    .min(min, `${label} must be at least ${min}.`)
-    .max(max, `${label} must be at most ${max}.`);
-}
-
-function wholeNumberField(label: string, min: number, max: number) {
-  return z
-    .number({ invalid_type_error: `Please choose ${label.toLowerCase()}.` })
-    .int(`Please choose ${label.toLowerCase()}.`)
-    .min(min, `Please choose a valid ${label.toLowerCase()}.`)
-    .max(max, `Please choose a valid ${label.toLowerCase()}.`);
-}
-
 export const patientSchema = z.object({
-  age: wholeNumberField("Age", 18, 100),
-  sex: wholeNumberField("Sex", 0, 1),
-  cp: wholeNumberField("Chest pain group", 0, 3),
-  trestbps: numberField("Resting blood pressure", 80, 250),
-  chol: numberField("Cholesterol", 80, 700),
-  fbs: wholeNumberField("Fasting blood sugar option", 0, 1),
-  restecg: wholeNumberField("ECG result at rest", 0, 2),
-  thalach: numberField("Max heart rate", 60, 250),
-  exang: wholeNumberField("Chest pain during exercise option", 0, 1),
-  oldpeak: numberField("ECG stress change", 0, 10),
-  slope: wholeNumberField("ECG slope option", 0, 2),
-  ca: wholeNumberField("Major blood vessels option", 0, 4),
-  thal: wholeNumberField("Thalassemia result", 0, 3)
+  cap_shape: z.enum(["b", "c", "x", "f", "k", "s"]),
+  cap_surface: z.enum(["f", "g", "y", "s"]),
+  cap_color: z.enum(["n", "b", "c", "g", "r", "p", "u", "e", "w", "y"]),
+  bruises: z.enum(["t", "f"]),
+  odor: z.enum(["a", "l", "c", "y", "f", "m", "n", "p", "s"]),
+  gill_attachment: z.enum(["a", "d", "f", "n"]),
+  gill_spacing: z.enum(["c", "w", "d"]),
+  gill_size: z.enum(["b", "n"]),
+  gill_color: z.enum(["k", "n", "b", "h", "g", "r", "o", "p", "u", "e", "w", "y"]),
+  stalk_shape: z.enum(["e", "t"]),
+  stalk_root: z.enum(["b", "c", "u", "e", "z", "r", "?"]),
+  stalk_surface_above_ring: z.enum(["f", "y", "k", "s"]),
+  stalk_surface_below_ring: z.enum(["f", "y", "k", "s"]),
+  stalk_color_above_ring: z.enum(["n", "b", "c", "g", "o", "p", "e", "w", "y"]),
+  stalk_color_below_ring: z.enum(["n", "b", "c", "g", "o", "p", "e", "w", "y"]),
+  veil_type: z.enum(["p", "u"]),
+  veil_color: z.enum(["n", "o", "w", "y"]),
+  ring_number: z.enum(["n", "o", "t"]),
+  ring_type: z.enum(["c", "e", "f", "l", "n", "p", "s", "z"]),
+  spore_print_color: z.enum(["k", "n", "b", "h", "r", "o", "u", "w", "y"]),
+  population: z.enum(["a", "c", "n", "s", "v", "y"]),
+  habitat: z.enum(["g", "l", "m", "p", "u", "w", "d"])
 });
 
 export const whatIfSchema = z.object({

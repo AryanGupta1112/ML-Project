@@ -25,7 +25,7 @@ export default function HistoryPage() {
   }
 
   if (isError || !data) {
-    return <p className="text-danger">Could not load past results.</p>;
+    return <p className="text-danger">Could not load past checks.</p>;
   }
 
   return (
@@ -34,7 +34,7 @@ export default function HistoryPage() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Past Risk Checks ({data.items.length})</CardTitle>
+          <CardTitle>Past Safety Checks ({data.items.length})</CardTitle>
           <div className="flex items-center gap-2">
             <RefreshIndicator isFetching={isFetching} updatedAt={dataUpdatedAt} label="Last update" />
             <Button variant="outline" size="sm" onClick={() => void refetch()} className="gap-1.5">
@@ -45,16 +45,16 @@ export default function HistoryPage() {
         </CardHeader>
         <CardContent>
           {data.items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No saved results yet. Run a risk check first.</p>
+            <p className="text-sm text-muted-foreground">No saved results yet. Run a prediction first.</p>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Time</TableHead>
                   <TableHead>Model used</TableHead>
-                  <TableHead>Chance</TableHead>
-                  <TableHead>Risk Score</TableHead>
-                  <TableHead>Risk Level</TableHead>
+                  <TableHead>Unsafe chance</TableHead>
+                  <TableHead>Score</TableHead>
+                  <TableHead>Safety level</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

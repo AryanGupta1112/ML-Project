@@ -3,7 +3,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: cardiointel-backend
+    container_name: mycointel-backend
     environment:
       - PYTHONPATH=/app
       - AUTO_TRAIN_MODELS=false
@@ -18,7 +18,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: cardiointel-frontend
+    container_name: mycointel-frontend
     environment:
       - VITE_API_BASE_URL=http://localhost:8000/api
     ports:

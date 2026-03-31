@@ -1,41 +1,46 @@
 from app.schemas.risk import PatientInput
 
 
-def generate_recommendations(data: PatientInput) -> list[str]:
+def generate_recommendations(data: PatientInput, probability: float) -> list[str]:
     recommendations: list[str] = []
 
-    if data.trestbps >= 130:
+    high_danger_odors = {"c", "f", "m", "p", "s", "y"}
+    if data.odor in high_danger_odors:
         recommendations.append(
-            "Your resting blood pressure is high. Cut down salt, stay active, and check blood pressure every week."
-        )
-    if data.chol >= 200:
-        recommendations.append(
-            "Your cholesterol is high. Reduce fried and fatty foods, eat more fiber, and discuss follow-up blood tests with your doctor."
-        )
-    if data.oldpeak >= 2.0:
-        recommendations.append(
-            "Your ECG stress-change value is high. Ask a heart specialist for a detailed check before heavy exercise."
-        )
-    if data.thalach <= 120:
-        recommendations.append(
-            "Your peak heart rate is low. Build regular light-to-moderate cardio activity each week with medical guidance."
-        )
-    if data.exang == 1:
-        recommendations.append(
-            "Chest pain with exercise is present. Avoid intense workouts until your doctor says it is safe."
-        )
-    if data.fbs == 1:
-        recommendations.append(
-            "Your fasting blood sugar is high. Reduce sugary foods and speak with your doctor about diabetes checks."
-        )
-    if data.age >= 55:
-        recommendations.append(
-            "Age can increase heart risk. Keep regular heart checkups and review medicines with your doctor."
+            "The selected odor is commonly linked to poisonous mushrooms. Treat this sample as unsafe."
         )
 
-    if not recommendations:
+    if data.spore_print_color == "r":
         recommendations.append(
-            "Your current profile looks stable. Keep exercising, eat well, and continue yearly health checkups."
+            "Green spore print is a strong warning signal. Do not consume this mushroom."
+        )
+
+    if data.gill_size == "n":
+        recommendations.append(
+            "Narrow gills increase toxicity risk in this dataset. Use expert verification before any handling."
+        )
+
+    if data.ring_type in {"e", "n"}:
+        recommendations.append(
+            "This ring pattern appears more often in poisonous classes. Handle with caution."
+        )
+
+    if data.habitat in {"u", "w"}:
+        recommendations.append(
+            "Urban and waste habitats can increase uncertainty. Avoid consumption when confidence is not very high."
+        )
+
+    if probability >= 0.7:
+        recommendations.append(
+            "Model confidence is high for toxicity risk. Mark as potentially poisonous and avoid ingestion."
+        )
+    elif probability <= 0.3:
+        recommendations.append(
+            "Model indicates lower toxicity risk, but never eat wild mushrooms without professional confirmation."
+        )
+    else:
+        recommendations.append(
+            "This is an uncertain zone. Request a manual expert check before making safety decisions."
         )
 
     return recommendations

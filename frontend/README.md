@@ -1,10 +1,10 @@
-# Frontend: Smart Cardiovascular Risk Analysis System
+# Frontend: Smart Mushroom Toxicity Analysis System
 
 ## Stack
-- Vite + React 19 + TypeScript
+- Vite + React + TypeScript
 - React Router
 - Tailwind CSS
-- shadcn/ui (Radix primitives)
+- shadcn/ui (Radix)
 - TanStack Query
 - React Hook Form + Zod
 - Recharts + Framer Motion
@@ -15,35 +15,28 @@ cd frontend
 npm install
 ```
 
-## Configure API URL
-Create `.env.local` in `frontend/`:
+## Configure Backend URL
+Create `frontend/.env.local`:
 ```bash
 VITE_API_BASE_URL=http://localhost:8000/api
 ```
 
-## Run (Development)
+## Run
 ```bash
 cd frontend
 npm run dev
 ```
 
-## Build + Preview (Production-like)
+## Build
 ```bash
 npm run build
 npm run start
 ```
 
-## Routes
-- `/` Landing
-- `/dashboard` Main prediction workflow
-- `/models` Model benchmark analytics
-- `/what-if` Scenario simulation
-- `/history` Prediction history and trend
-- `/about` Architecture and system notes
-
-## Features
-- Real API calls to FastAPI backend
-- Real-time health and data refresh indicators
-- Validated forms and error handling
-- Interactive charts for model and risk analysis
-- Dark mode support
+## Main Routes
+- `/` Project overview and live status
+- `/dashboard` Main toxicity prediction form
+- `/models` Model comparison and best-use guidance
+- `/what-if` Side-by-side profile simulation
+- `/history` Saved predictions and trend
+- `/about` Dataset and training pipeline details

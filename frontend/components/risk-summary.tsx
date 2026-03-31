@@ -1,6 +1,7 @@
 "use client";
 
 import { PolarAngleAxis, RadialBar, RadialBarChart, ResponsiveContainer } from "recharts";
+import { AlertTriangle } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +18,7 @@ export function RiskSummary({ result }: RiskSummaryProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Your Risk Result</CardTitle>
+        <CardTitle>Your Safety Result</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-5 md:grid-cols-[220px_1fr]">
         <div className="h-48 w-full">
@@ -28,7 +29,7 @@ export function RiskSummary({ result }: RiskSummaryProps) {
             </RadialBarChart>
           </ResponsiveContainer>
           <div className="-mt-24 text-center">
-            <p className="text-xs uppercase text-muted-foreground">Risk score</p>
+            <p className="text-xs uppercase text-muted-foreground">Safety score</p>
             <p className="text-4xl font-semibold">{result.risk_score}</p>
           </div>
         </div>
@@ -39,13 +40,23 @@ export function RiskSummary({ result }: RiskSummaryProps) {
             <span className="text-sm text-muted-foreground">Model used: {formatModelName(result.model_name)}</span>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Chance of heart risk</p>
+            <p className="text-sm text-muted-foreground">Chance this mushroom is unsafe</p>
             <p className="text-2xl font-semibold">{(result.probability * 100).toFixed(2)}%</p>
           </div>
           <div>
-            <p className="text-sm text-muted-foreground">Simple result</p>
-            <p className="text-lg font-medium">{result.prediction === 1 ? "Higher heart risk detected" : "No strong risk detected"}</p>
+            <p className="text-sm text-muted-foreground">Quick summary</p>
+            <p className="text-lg font-medium">{result.prediction === 1 ? "Likely unsafe to eat" : "Likely safer pattern"}</p>
           </div>
+          {result.warnings.length > 0 ? (
+            <div className="space-y-2 rounded-md border border-warning/40 bg-warning/10 p-3">
+              {result.warnings.map((warning) => (
+                <p key={warning} className="flex items-start gap-2 text-sm text-warning">
+                  <AlertTriangle className="mt-0.5 h-4 w-4" />
+                  <span>{warning}</span>
+                </p>
+              ))}
+            </div>
+          ) : null}
         </div>
       </CardContent>
     </Card>

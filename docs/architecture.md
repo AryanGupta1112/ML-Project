@@ -1,35 +1,43 @@
-# System Architecture
+# Architecture
 
-## High-Level Components
-- **Frontend (Vite + React Router)**: UI workflows for prediction, model comparison, what-if simulation, history, and platform details.
-- **Backend (FastAPI)**: API layer, model inference, explainability, recommendation engine, and persistence.
-- **ML Pipeline (scikit-learn + SHAP)**: Dataset ingestion, preprocessing, model training, evaluation, artifact management.
-- **Persistence (SQLite)**: Prediction history and audit trail for dashboard trend views.
+## Overview
+The system is split into:
+- `frontend/`: React dashboard for prediction, model comparison, what-if simulation, and history.
+- `backend/`: FastAPI service for training artifacts, inference, explainability, and persistence.
 
-## Data Flow
-1. User submits patient features on the dashboard.
-2. Frontend validates with Zod + React Hook Form.
-3. Request is sent to FastAPI `/api/predict`.
-4. Backend runs selected model inference and explainability.
-5. Backend returns probability, risk score, risk level, top factors, recommendations.
-6. Response is rendered in charts/tables and saved into SQLite history.
+## Data + Model Layer
+1. `backend/app/ml/train.py` downloads the OpenML Mushroom dataset.
+2. Categorical traits are one-hot encoded in a scikit-learn pipeline.
+3. Five classifiers are trained and evaluated.
+4. Artifacts are saved into `backend/saved_models`:
+   - model `.joblib` files
+   - `metadata.json` (metrics + feature metadata)
 
-## Model Lifecycle
-1. `app/ml/train.py` downloads real cardiovascular data from OpenML.
-2. Trains 5 classifiers: Logistic Regression, Decision Tree, Random Forest, KNN, SVM.
-3. Evaluates on holdout test data.
-4. Stores `.joblib` models and `metadata.json`.
-5. API loads artifacts on startup.
-6. Local runs can auto-train if artifacts are missing; Docker runs are configured to require pre-trained artifacts.
+## API Layer
+- `POST /api/predict`: predicts toxicity from one mushroom profile.
+- `POST /api/what-if`: compares two mushroom profiles.
+- `GET /api/models/performance`: returns all model metrics.
+- `GET /api/features/info`: returns feature descriptions + allowed values.
+- `GET /api/history`: returns persisted prediction history.
 
-## Explainability Strategy
-- Tree models use SHAP values from transformed feature space.
-- Contributions are aggregated back to original clinical features.
-- Non-tree models use coefficient/importance-based impact fallback.
+## Explainability
+- Tree models: SHAP contributions.
+- Linear models: coefficient-based contributions.
+- Non-linear fallback: feature value risk-rate contribution from training metadata.
 
-## Risk Logic
-- `risk_score = round(probability * 100)`
-- Risk buckets:
-  - 0-39: Low Risk
-  - 40-69: Medium Risk
-  - 70-100: High Risk
+## Frontend Layer
+- Form built from structured feature config (`frontend/lib/patient-config.ts`).
+- API calls handled through TanStack Query.
+- Results page shows:
+  - probability
+  - score (0-100)
+  - level (Low/Medium/High)
+  - top contributing features
+  - safety recommendations
+
+## Persistence
+- SQLite stores prediction history:
+  - model used
+  - probability/score/level
+  - input payload
+  - top factors

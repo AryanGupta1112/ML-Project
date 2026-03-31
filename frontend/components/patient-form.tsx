@@ -29,6 +29,7 @@ export function PatientForm({ form }: PatientFormProps) {
               return (
                 <div key={fieldName} className="space-y-2">
                   <Label htmlFor={fieldName}>{meta.label}</Label>
+                  {"hint" in meta && typeof meta.hint === "string" ? <p className="-mt-1 text-xs text-muted-foreground">{meta.hint}</p> : null}
                   {meta.type === "number" ? (
                     <Input
                       id={fieldName}
@@ -41,7 +42,7 @@ export function PatientForm({ form }: PatientFormProps) {
                       control={form.control}
                       name={fieldName}
                       render={({ field }) => (
-                        <Select value={String(field.value)} onValueChange={(value) => field.onChange(Number(value))}>
+                        <Select value={String(field.value)} onValueChange={(value) => field.onChange(value)}>
                           <SelectTrigger>
                             <SelectValue />
                           </SelectTrigger>

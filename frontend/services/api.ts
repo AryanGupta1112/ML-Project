@@ -18,8 +18,9 @@ const apiClient = axios.create({
   }
 });
 
-export async function predictRisk(payload: PatientInput): Promise<PredictionResponse> {
-  const { data } = await apiClient.post<PredictionResponse>("/predict", payload);
+export async function predictRisk(payload: PatientInput, modelName?: string): Promise<PredictionResponse> {
+  const suffix = modelName ? `?model_name=${encodeURIComponent(modelName)}` : "";
+  const { data } = await apiClient.post<PredictionResponse>(`/predict${suffix}`, payload);
   return data;
 }
 
@@ -38,8 +39,9 @@ export async function getFeatureInfo(): Promise<FeaturesInfoResponse> {
   return data;
 }
 
-export async function runWhatIf(payload: WhatIfRequest): Promise<WhatIfResponse> {
-  const { data } = await apiClient.post<WhatIfResponse>("/what-if", payload);
+export async function runWhatIf(payload: WhatIfRequest, modelName?: string): Promise<WhatIfResponse> {
+  const suffix = modelName ? `?model_name=${encodeURIComponent(modelName)}` : "";
+  const { data } = await apiClient.post<WhatIfResponse>(`/what-if${suffix}`, payload);
   return data;
 }
 

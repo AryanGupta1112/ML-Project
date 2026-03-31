@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { checkHealth, getFeatureInfo, getHistory, getModelPerformance, getTrainingSummary, predictRisk, runWhatIf } from "@/services/api";
+import type { PatientInput, WhatIfRequest } from "@/types/api";
 
 export const queryKeys = {
   health: ["health"] as const,
@@ -53,9 +54,13 @@ export function useHistory(limit = 100) {
 }
 
 export function usePredictMutation() {
-  return useMutation({ mutationFn: predictRisk });
+  return useMutation({
+    mutationFn: ({ payload, modelName }: { payload: PatientInput; modelName?: string }) => predictRisk(payload, modelName)
+  });
 }
 
 export function useWhatIfMutation() {
-  return useMutation({ mutationFn: runWhatIf });
+  return useMutation({
+    mutationFn: ({ payload, modelName }: { payload: WhatIfRequest; modelName?: string }) => runWhatIf(payload, modelName)
+  });
 }

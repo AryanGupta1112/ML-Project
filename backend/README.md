@@ -1,4 +1,4 @@
-# Backend: Smart Cardiovascular Risk Analysis System
+# Backend: Smart Mushroom Toxicity Analysis System
 
 ## Stack
 - FastAPI
@@ -6,11 +6,22 @@
 - SHAP
 - SQLAlchemy + SQLite
 
+## Dataset
+- Source: OpenML Mushroom dataset (UCI)
+- Rows: 8,124
+- Features: 22 categorical mushroom traits
+- Target: `class` (`p` poisonous, `e` edible)
+
 ## What it does
-- Trains 5 ML models on a real cardiovascular dataset from OpenML.
-- Selects best model by ROC-AUC.
-- Serves prediction, model-performance, explainability, what-if analysis, feature metadata, and history APIs.
-- Stores prediction history in SQLite.
+- Trains 5 real ML models:
+  - Logistic Regression
+  - Decision Tree
+  - Random Forest
+  - KNN
+  - SVM
+- Evaluates on held-out test data.
+- Saves all model artifacts and metrics to `backend/saved_models`.
+- Serves prediction, what-if, explainability, model performance, and history APIs.
 
 ## Setup
 ```bash
@@ -21,53 +32,34 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-## Train Models (Local)
+## Train Models
 ```bash
 cd backend
 set PYTHONPATH=.
 python -m app.ml.train
 ```
 
-Dataset sizing options (in `backend/.env`):
-- `DATASET_PROFILE=large` uses OpenML `BNG(heart-statlog)` (1,000,000 source rows).
-- `TRAINING_MAX_ROWS=15000` caps rows used for training to keep runtime practical.
-- `DATASET_PROFILE=standard` switches back to the classic smaller heart dataset.
-
-Artifacts are written to `backend/saved_models`:
-- `logistic_regression.joblib`
-- `decision_tree.joblib`
-- `random_forest.joblib`
-- `knn.joblib`
-- `svm.joblib`
-- `metadata.json`
-
-## Run API (Local)
+## Run API
 ```bash
 cd backend
 set PYTHONPATH=.
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## Run API (Docker)
+## Docker (Backend Only)
 ```bash
-cd ..
 docker compose up --build backend
 ```
 
-Important:
-- Docker backend now expects model artifacts to already exist in `backend/saved_models`.
-- Train models locally first with `python -m app.ml.train`.
-- In Docker mode, automatic training is disabled (`AUTO_TRAIN_MODELS=false`) so model training stays separate from containers.
-
 ## API Endpoints
 - `GET /api/health`
-- `POST /api/predict`
+- `POST /api/predict` (optional query: `model_name`)
 - `GET /api/models/performance`
-- `POST /api/what-if`
+- `POST /api/what-if` (optional query: `model_name`)
 - `GET /api/features/info`
 - `GET /api/history?limit=100`
 
 ## Notes
-- By default (local runs), backend can auto-train if artifacts are missing.
-- In Docker mode, auto-training is disabled to keep training separate from container startup.
-- SQLite DB path: `backend/data/prediction_history.db`.
+- `INFERENCE_MODEL_NAME` in `.env` can force one specific model.
+- If empty, backend uses the best model from training metadata.
+- History DB: `backend/data/prediction_history.db`.

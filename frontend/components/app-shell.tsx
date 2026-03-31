@@ -8,37 +8,37 @@ import { cn } from "@/lib/utils";
 
 const links = [
   { path: "/", label: "Home" },
-  { path: "/dashboard", label: "Check Risk" },
-  { path: "/models", label: "How Accurate" },
-  { path: "/what-if", label: "Try Changes" },
-  { path: "/history", label: "Past Results" },
+  { path: "/dashboard", label: "Check Mushroom" },
+  { path: "/models", label: "Model Scores" },
+  { path: "/what-if", label: "Compare Two Cases" },
+  { path: "/history", label: "Prediction History" },
   { path: "/about", label: "How It Works" }
 ];
 
 const routeMeta: Record<string, { title: string; subtitle: string }> = {
   "/": {
-    title: "Cardiovascular Risk Tool Overview",
-    subtitle: "See what data we use, how we train, and what the model can do"
+    title: "Mushroom Safety Prediction Tool",
+    subtitle: "A beginner-friendly tool that estimates if a mushroom may be unsafe"
   },
   "/dashboard": {
-    title: "Check Your Risk",
-    subtitle: "Enter health details to get a risk score and clear explanation"
+    title: "Check One Mushroom",
+    subtitle: "Pick what you observe and get a simple safety estimate"
   },
   "/models": {
-    title: "Model Accuracy",
-    subtitle: "Compare how well each model performs"
+    title: "How Accurate The Models Are",
+    subtitle: "See which model performs best and when to use it"
   },
   "/what-if": {
-    title: "Try Health Changes",
-    subtitle: "Compare your current profile with a changed profile"
+    title: "Compare Two Mushrooms",
+    subtitle: "See how changing features affects the safety estimate"
   },
   "/history": {
-    title: "Past Checks",
-    subtitle: "Review previous risk results over time"
+    title: "Prediction History",
+    subtitle: "Review your past checks over time"
   },
   "/about": {
-    title: "How The Model Was Trained",
-    subtitle: "Learn the dataset, steps, and saved model files"
+    title: "About The Model",
+    subtitle: "Learn where data comes from and how the model is trained"
   }
 };
 
@@ -55,8 +55,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Activity className="h-4 w-4" />
             </div>
             <div>
-              <p className="text-sm font-semibold">CardioIntel</p>
-              <p className="text-xs text-muted-foreground">Cardiovascular Risk Assistant</p>
+              <p className="text-sm font-semibold">MycoIntel</p>
+              <p className="text-xs text-muted-foreground">Mushroom Safety Assistant</p>
             </div>
           </div>
           <div className="flex items-center gap-2">

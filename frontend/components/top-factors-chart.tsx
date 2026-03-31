@@ -20,7 +20,7 @@ export function TopFactorsChart({ factors }: TopFactorsChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Main Reasons Behind This Result</CardTitle>
+        <CardTitle>Main Reasons For This Result</CardTitle>
       </CardHeader>
       <CardContent className="h-72">
         <ResponsiveContainer width="100%" height="100%">
@@ -28,7 +28,7 @@ export function TopFactorsChart({ factors }: TopFactorsChartProps) {
             <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.3} />
             <XAxis type="number" />
             <YAxis dataKey="feature" type="category" width={90} />
-            <Tooltip formatter={(value: number) => [`${value}`, "Effect strength"]} />
+            <Tooltip formatter={(value: number) => [`${value}`, "How strongly it affected the result"]} />
             <Bar dataKey="impact" fill="#0ea5e9" radius={[0, 6, 6, 0]} />
           </BarChart>
         </ResponsiveContainer>

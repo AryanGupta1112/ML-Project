@@ -10,7 +10,7 @@ export function RecommendationsPanel({ recommendations }: RecommendationsPanelPr
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Suggested Next Steps</CardTitle>
+        <CardTitle>Safety Advice</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {recommendations.map((recommendation) => (

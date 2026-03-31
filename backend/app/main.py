@@ -28,4 +28,4 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router, prefix=settings.api_prefix, tags=["Cardiovascular Risk"])
+app.include_router(router, prefix=settings.api_prefix, tags=["Mushroom Toxicity Analysis"])

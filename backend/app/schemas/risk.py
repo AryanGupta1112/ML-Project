@@ -3,31 +3,54 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.ml.feature_catalog import FEATURE_DEFINITIONS
+
+
+ALLOWED_FEATURE_VALUES: dict[str, set[str]] = {
+    feature: set(definition["options"].keys()) for feature, definition in FEATURE_DEFINITIONS.items()
+}
+
 
 class PatientInput(BaseModel):
-    age: int = Field(..., ge=18, le=100, description="Age in years")
-    sex: int = Field(..., ge=0, le=1, description="0 = female, 1 = male")
-    cp: int = Field(..., ge=0, le=3, description="Chest pain type")
-    trestbps: float = Field(..., ge=80, le=250, description="Resting blood pressure (mm Hg)")
-    chol: float = Field(..., ge=80, le=700, description="Serum cholesterol (mg/dl)")
-    fbs: int = Field(..., ge=0, le=1, description="Fasting blood sugar > 120 mg/dl")
-    restecg: int = Field(..., ge=0, le=2, description="Resting electrocardiographic results")
-    thalach: float = Field(..., ge=60, le=250, description="Maximum heart rate achieved")
-    exang: int = Field(..., ge=0, le=1, description="Exercise induced angina")
-    oldpeak: float = Field(..., ge=0.0, le=10.0, description="ST depression induced by exercise")
-    slope: int = Field(..., ge=0, le=2, description="Slope of peak exercise ST segment")
-    ca: int = Field(..., ge=0, le=4, description="Number of major vessels colored by fluoroscopy")
-    thal: int = Field(..., ge=0, le=3, description="Thalassemia")
+    cap_shape: str = Field(..., description="Cap shape code")
+    cap_surface: str = Field(..., description="Cap surface texture code")
+    cap_color: str = Field(..., description="Cap color code")
+    bruises: str = Field(..., description="Bruises present code")
+    odor: str = Field(..., description="Odor code")
+    gill_attachment: str = Field(..., description="Gill attachment code")
+    gill_spacing: str = Field(..., description="Gill spacing code")
+    gill_size: str = Field(..., description="Gill size code")
+    gill_color: str = Field(..., description="Gill color code")
+    stalk_shape: str = Field(..., description="Stalk shape code")
+    stalk_root: str = Field(..., description="Stalk root code")
+    stalk_surface_above_ring: str = Field(..., description="Stalk surface above ring code")
+    stalk_surface_below_ring: str = Field(..., description="Stalk surface below ring code")
+    stalk_color_above_ring: str = Field(..., description="Stalk color above ring code")
+    stalk_color_below_ring: str = Field(..., description="Stalk color below ring code")
+    veil_type: str = Field(..., description="Veil type code")
+    veil_color: str = Field(..., description="Veil color code")
+    ring_number: str = Field(..., description="Ring count code")
+    ring_type: str = Field(..., description="Ring type code")
+    spore_print_color: str = Field(..., description="Spore print color code")
+    population: str = Field(..., description="Population code")
+    habitat: str = Field(..., description="Habitat code")
 
-    @field_validator("trestbps", "chol", "thalach", "oldpeak")
+    @field_validator("*")
     @classmethod
-    def round_continuous(cls, value: float) -> float:
-        return round(float(value), 3)
+    def validate_category_codes(cls, value: str, info) -> str:
+        if info.field_name is None:
+            return value
+        allowed = ALLOWED_FEATURE_VALUES.get(info.field_name)
+        if allowed is None:
+            return value
+        if value not in allowed:
+            raise ValueError(f"Invalid value for {info.field_name}: {value}")
+        return value
 
 
 class FeatureContribution(BaseModel):
     feature: str
-    feature_value: float | int
+    feature_value: str | float | int
     impact_score: float
     direction: Literal["increases", "decreases"]
 
@@ -40,6 +63,7 @@ class PredictionResponse(BaseModel):
     model_name: str
     top_factors: list[FeatureContribution]
     recommendations: list[str]
+    warnings: list[str] = Field(default_factory=list)
 
 
 class ModelMetric(BaseModel):
@@ -64,6 +88,7 @@ class TrainingSummaryResponse(BaseModel):
     categorical_feature_count: int
     generated_at: datetime | None
     best_model: str
+    active_inference_model: str
     algorithms_trained: list[str]
     train_test_split: str
     training_library: str
@@ -84,12 +109,18 @@ class WhatIfResponse(BaseModel):
     risk_level_changed: bool
 
 
+class FeatureValueOption(BaseModel):
+    code: str
+    label: str
+
+
 class FeatureInfoItem(BaseModel):
     name: str
     type: Literal["numeric", "categorical"]
     min: float | int
     max: float | int
     description: str
+    allowed_values: list[FeatureValueOption] = Field(default_factory=list)
 
 
 class FeaturesInfoResponse(BaseModel):

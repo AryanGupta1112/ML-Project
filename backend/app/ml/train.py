@@ -23,40 +23,31 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 
 from app.core.config import settings
+from app.ml.feature_catalog import CATEGORICAL_FEATURES, EXPECTED_FEATURES, FEATURE_DEFINITIONS, NUMERIC_FEATURES
 
-EXPECTED_FEATURES = [
-    "age",
-    "sex",
-    "cp",
-    "trestbps",
-    "chol",
-    "fbs",
-    "restecg",
-    "thalach",
-    "exang",
-    "oldpeak",
-    "slope",
-    "ca",
-    "thal",
-]
-
-NUMERIC_FEATURES = ["age", "trestbps", "chol", "thalach", "oldpeak"]
-CATEGORICAL_FEATURES = ["sex", "cp", "fbs", "restecg", "exang", "slope", "ca", "thal"]
-
-FEATURE_DESCRIPTIONS = {
-    "age": "Age in years",
-    "sex": "Sex (0 = female, 1 = male)",
-    "cp": "Chest pain type (0-3)",
-    "trestbps": "Resting blood pressure in mm Hg",
-    "chol": "Serum cholesterol in mg/dl",
-    "fbs": "Fasting blood sugar > 120 mg/dl (1 = true)",
-    "restecg": "Resting electrocardiographic result (0-2)",
-    "thalach": "Maximum heart rate achieved",
-    "exang": "Exercise induced angina (1 = yes)",
-    "oldpeak": "ST depression induced by exercise",
-    "slope": "Slope of peak exercise ST segment (0-2)",
-    "ca": "Major vessels colored by fluoroscopy (0-4)",
-    "thal": "Thalassemia category (0-3)",
+RAW_TO_CANONICAL = {
+    "cap-shape": "cap_shape",
+    "cap-surface": "cap_surface",
+    "cap-color": "cap_color",
+    "bruises%3F": "bruises",
+    "odor": "odor",
+    "gill-attachment": "gill_attachment",
+    "gill-spacing": "gill_spacing",
+    "gill-size": "gill_size",
+    "gill-color": "gill_color",
+    "stalk-shape": "stalk_shape",
+    "stalk-root": "stalk_root",
+    "stalk-surface-above-ring": "stalk_surface_above_ring",
+    "stalk-surface-below-ring": "stalk_surface_below_ring",
+    "stalk-color-above-ring": "stalk_color_above_ring",
+    "stalk-color-below-ring": "stalk_color_below_ring",
+    "veil-type": "veil_type",
+    "veil-color": "veil_color",
+    "ring-number": "ring_number",
+    "ring-type": "ring_type",
+    "spore-print-color": "spore_print_color",
+    "population": "population",
+    "habitat": "habitat",
 }
 
 
@@ -68,177 +59,27 @@ class DatasetBundle:
     source_rows: int
 
 
-def _normalize_col(col: str) -> str:
-    return "".join(ch for ch in col.lower() if ch.isalnum())
+def _safe_str(series: pd.Series) -> pd.Series:
+    return series.astype(str).str.strip()
 
 
-def _safe_numeric(series: pd.Series) -> pd.Series:
-    return pd.to_numeric(series, errors="coerce")
-
-
-def _map_thal_to_expected_scale(series: pd.Series) -> pd.Series:
-    rounded = series.round()
-    if rounded.dropna().empty:
-        return rounded
-
-    if rounded.min() >= 3:
-        legacy_codes = np.array([3.0, 6.0, 7.0], dtype=float)
-        legacy_to_expected = {3.0: 2.0, 6.0: 1.0, 7.0: 3.0}
-
-        def _nearest_legacy(value: float) -> float:
-            closest = legacy_codes[np.argmin(np.abs(legacy_codes - value))]
-            return legacy_to_expected[float(closest)]
-
-        return rounded.apply(lambda value: _nearest_legacy(float(value)) if pd.notna(value) else value)
-
-    return rounded.clip(0, 3)
-
-
-def _normalize_feature_values(frame: pd.DataFrame) -> pd.DataFrame:
-    normalized = frame.copy()
-
-    # Numeric fields: clip to medically reasonable ranges that match API validation.
-    normalized["age"] = normalized["age"].clip(18, 100)
-    normalized["trestbps"] = normalized["trestbps"].clip(80, 250)
-    normalized["chol"] = normalized["chol"].clip(80, 700)
-    normalized["thalach"] = normalized["thalach"].clip(60, 250)
-    normalized["oldpeak"] = normalized["oldpeak"].clip(0, 10)
-
-    # Categorical fields: round and map to the coding used by frontend/backend schemas.
-    normalized["sex"] = normalized["sex"].round().clip(0, 1)
-
-    cp = normalized["cp"]
-    if cp.dropna().min() >= 1 and cp.dropna().max() <= 4.5:
-        cp = cp - 1
-    normalized["cp"] = cp.round().clip(0, 3)
-
-    normalized["fbs"] = normalized["fbs"].round().clip(0, 1)
-    normalized["restecg"] = normalized["restecg"].round().clip(0, 2)
-    normalized["exang"] = normalized["exang"].round().clip(0, 1)
-
-    slope = normalized["slope"]
-    if slope.dropna().min() >= 1 and slope.dropna().max() <= 3.5:
-        slope = slope - 1
-    normalized["slope"] = slope.round().clip(0, 2)
-
-    normalized["ca"] = normalized["ca"].round().clip(0, 4)
-    normalized["thal"] = _map_thal_to_expected_scale(normalized["thal"])
-
-    return normalized
-
-
-def _binarize_target(target: pd.Series) -> pd.Series:
-    numeric = pd.to_numeric(target, errors="coerce")
-    if numeric.notna().sum() >= int(0.8 * len(target)):
-        return (numeric.fillna(0) > 0).astype(int)
-
-    lowered = target.astype(str).str.lower().str.strip()
-    positive_markers = {"1", "yes", "true", "present", "positive", "disease"}
-    return lowered.isin(positive_markers).astype(int)
-
-
-def _find_target_column(frame: pd.DataFrame) -> str:
-    candidates = ["target", "class", "num", "output", "cardio"]
-    normalized = {_normalize_col(c): c for c in frame.columns}
-    for candidate in candidates:
-        if candidate in frame.columns:
-            return candidate
-        key = _normalize_col(candidate)
-        if key in normalized:
-            return normalized[key]
-    raise ValueError("Unable to identify target column from downloaded dataset")
-
-
-def load_heart_dataset() -> DatasetBundle:
-    if settings.dataset_profile.lower() == "large":
-        fetch_attempts = [{"data_id": settings.large_dataset_data_id}]
-    else:
-        fetch_attempts = [
-            {"name": "heart-disease", "version": 1},
-            {"name": "heart-statlog", "version": 1},
-            {"name": "HeartDisease", "version": 1},
-        ]
-
-    last_error: Exception | None = None
-    bundle = None
-    source_name = "unknown"
-    for kwargs in fetch_attempts:
-        try:
-            bundle = fetch_openml(as_frame=True, parser="auto", **kwargs)
-            details = getattr(bundle, "details", {}) or {}
-            source_name = str(details.get("name") or kwargs.get("name") or f"data_id={kwargs.get('data_id')}")
-            break
-        except Exception as exc:
-            last_error = exc
-
-    if bundle is None:
-        raise RuntimeError(f"Failed to download dataset from OpenML: {last_error}")
-
+def load_mushroom_dataset() -> DatasetBundle:
+    bundle = fetch_openml(name="mushroom", version=1, as_frame=True, parser="auto")
     frame = bundle.frame.copy()
     if frame is None or frame.empty:
-        frame = bundle.data.copy()
-        target = bundle.target.copy()
-        frame["target"] = target
+        raise RuntimeError("OpenML mushroom dataset is empty")
 
-    target_col = _find_target_column(frame)
-    y = _binarize_target(frame[target_col])
-
-    rename_map_alias = {
-        "age": "age",
-        "sex": "sex",
-        "gender": "sex",
-        "cp": "cp",
-        "chest": "cp",
-        "chestpaintype": "cp",
-        "trestbps": "trestbps",
-        "restingbp": "trestbps",
-        "restingbloodpressure": "trestbps",
-        "chol": "chol",
-        "cholesterol": "chol",
-        "serumcholestoral": "chol",
-        "fbs": "fbs",
-        "fastingbs": "fbs",
-        "fastingbloodsugar": "fbs",
-        "restecg": "restecg",
-        "restingelectrocardiographicresults": "restecg",
-        "thalach": "thalach",
-        "maxhr": "thalach",
-        "maximumheartrateachieved": "thalach",
-        "exang": "exang",
-        "exerciseangina": "exang",
-        "exerciseinducedangina": "exang",
-        "oldpeak": "oldpeak",
-        "stdepression": "oldpeak",
-        "slope": "slope",
-        "stslope": "slope",
-        "ca": "ca",
-        "majorvessels": "ca",
-        "numberofmajorvessels": "ca",
-        "thal": "thal",
-    }
-
-    renamed = {}
-    for col in frame.columns:
-        norm = _normalize_col(col)
-        if norm in rename_map_alias:
-            renamed[col] = rename_map_alias[norm]
-
-    x = frame.rename(columns=renamed)
-
-    missing = [feature for feature in EXPECTED_FEATURES if feature not in x.columns]
+    frame = frame.rename(columns=RAW_TO_CANONICAL)
+    missing = [feature for feature in EXPECTED_FEATURES if feature not in frame.columns]
     if missing:
-        raise RuntimeError(
-            "Dataset does not contain required cardiovascular features: " + ", ".join(missing)
-        )
+        raise RuntimeError("Mushroom dataset missing required features: " + ", ".join(missing))
 
-    x = x[EXPECTED_FEATURES].copy()
+    x = frame[EXPECTED_FEATURES].copy()
     for feature in EXPECTED_FEATURES:
-        x[feature] = _safe_numeric(x[feature])
-    x = _normalize_feature_values(x)
+        x[feature] = _safe_str(x[feature])
 
-    valid_rows = y.notna()
-    x = x[valid_rows]
-    y = y[valid_rows]
+    target_raw = _safe_str(frame["class"])
+    y = (target_raw == "p").astype(int)
 
     source_rows = int(x.shape[0])
     max_rows = int(settings.training_max_rows)
@@ -251,28 +92,28 @@ def load_heart_dataset() -> DatasetBundle:
             stratify=y,
         )
 
-    return DatasetBundle(x=x, y=y, source_name=source_name, source_rows=source_rows)
+    return DatasetBundle(x=x, y=y, source_name="OpenML Mushroom (UCI)", source_rows=source_rows)
 
 
 def _build_preprocessor(scale_numeric: bool) -> ColumnTransformer:
-    numeric_steps: list[tuple[str, Any]] = [("imputer", SimpleImputer(strategy="median"))]
-    if scale_numeric:
-        numeric_steps.append(("scaler", StandardScaler()))
+    transformers: list[tuple[str, Any, list[str]]] = []
 
-    numeric_transformer = Pipeline(steps=numeric_steps)
+    if NUMERIC_FEATURES:
+        numeric_steps: list[tuple[str, Any]] = [("imputer", SimpleImputer(strategy="median"))]
+        if scale_numeric:
+            numeric_steps.append(("scaler", StandardScaler()))
+        numeric_transformer = Pipeline(steps=numeric_steps)
+        transformers.append(("num", numeric_transformer, NUMERIC_FEATURES))
+
     categorical_transformer = Pipeline(
         steps=[
             ("imputer", SimpleImputer(strategy="most_frequent")),
             ("onehot", OneHotEncoder(handle_unknown="ignore")),
         ]
     )
+    transformers.append(("cat", categorical_transformer, CATEGORICAL_FEATURES))
 
-    return ColumnTransformer(
-        transformers=[
-            ("num", numeric_transformer, NUMERIC_FEATURES),
-            ("cat", categorical_transformer, CATEGORICAL_FEATURES),
-        ]
-    )
+    return ColumnTransformer(transformers=transformers)
 
 
 def _compute_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_prob: np.ndarray) -> dict[str, float]:
@@ -289,7 +130,7 @@ def train_and_save_models(output_dir: Path | None = None) -> dict[str, Any]:
     output_path = output_dir or settings.model_artifacts_dir
     output_path.mkdir(parents=True, exist_ok=True)
 
-    dataset = load_heart_dataset()
+    dataset = load_mushroom_dataset()
     x_train, x_test, y_train, y_test = train_test_split(
         dataset.x,
         dataset.y,
@@ -299,14 +140,14 @@ def train_and_save_models(output_dir: Path | None = None) -> dict[str, Any]:
     )
 
     model_configs: dict[str, tuple[Any, bool]] = {
-        "logistic_regression": (LogisticRegression(max_iter=1500, random_state=42), True),
-        "decision_tree": (DecisionTreeClassifier(max_depth=6, random_state=42), False),
+        "logistic_regression": (LogisticRegression(max_iter=2500, C=2.0, random_state=42), True),
+        "decision_tree": (DecisionTreeClassifier(max_depth=22, min_samples_leaf=1, random_state=42), False),
         "random_forest": (
-            RandomForestClassifier(n_estimators=350, min_samples_split=4, random_state=42),
+            RandomForestClassifier(n_estimators=450, max_depth=40, min_samples_split=2, random_state=42),
             False,
         ),
-        "knn": (KNeighborsClassifier(n_neighbors=11), True),
-        "svm": (SVC(kernel="rbf", probability=True, random_state=42), True),
+        "knn": (KNeighborsClassifier(n_neighbors=5, weights="distance"), True),
+        "svm": (SVC(kernel="rbf", C=3.0, gamma="scale", probability=True, random_state=42), True),
     }
 
     metrics_by_model: dict[str, dict[str, float]] = {}
@@ -325,18 +166,31 @@ def train_and_save_models(output_dir: Path | None = None) -> dict[str, Any]:
         model_file = output_path / f"{model_name}.joblib"
         joblib.dump(pipeline, model_file)
 
-    best_model = max(metrics_by_model, key=lambda name: metrics_by_model[name]["roc_auc"])
+    best_model = max(metrics_by_model, key=lambda name: metrics_by_model[name]["accuracy"])
+    positive_rate = float(dataset.y.mean())
 
-    feature_stats = {}
+    feature_stats: dict[str, dict[str, Any]] = {}
+    feature_value_target_rate: dict[str, dict[str, float]] = {}
+    feature_value_frequencies: dict[str, dict[str, float]] = {}
     for feature in EXPECTED_FEATURES:
-        non_null = dataset.x[feature].dropna()
+        options = FEATURE_DEFINITIONS[feature]["options"]
         feature_stats[feature] = {
-            "min": float(non_null.min()),
-            "max": float(non_null.max()),
-            "mean": float(non_null.mean()),
-            "type": "numeric" if feature in NUMERIC_FEATURES else "categorical",
-            "description": FEATURE_DESCRIPTIONS[feature],
+            "min": 0,
+            "max": len(options) - 1,
+            "type": "categorical",
+            "description": str(FEATURE_DEFINITIONS[feature]["description"]),
+            "allowed_values": [{"code": code, "label": label} for code, label in options.items()],
         }
+
+        rates: dict[str, float] = {}
+        frequencies: dict[str, float] = {}
+        grouped_target = dataset.y.groupby(dataset.x[feature]).mean()
+        grouped_count = dataset.x[feature].value_counts(normalize=True)
+        for code in options.keys():
+            rates[code] = float(grouped_target.get(code, positive_rate))
+            frequencies[code] = float(grouped_count.get(code, 0.0))
+        feature_value_target_rate[feature] = rates
+        feature_value_frequencies[feature] = frequencies
 
     metadata = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -348,7 +202,10 @@ def train_and_save_models(output_dir: Path | None = None) -> dict[str, Any]:
         "categorical_features": CATEGORICAL_FEATURES,
         "best_model": best_model,
         "metrics": metrics_by_model,
+        "target_positive_rate": positive_rate,
         "feature_stats": feature_stats,
+        "feature_value_target_rate": feature_value_target_rate,
+        "feature_value_frequencies": feature_value_frequencies,
     }
 
     with (output_path / "metadata.json").open("w", encoding="utf-8") as fp:

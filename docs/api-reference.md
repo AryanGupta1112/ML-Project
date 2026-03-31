@@ -8,8 +8,8 @@ Base URL: `http://localhost:8000/api`
 
 ## Predict
 `POST /predict`
-- Request body: patient features.
-- Response: prediction class, probability, risk score, risk level, model name, top factors, recommendations.
+- Request body: mushroom feature profile.
+- Response: toxicity class, probability, score, level, model name, top factors, recommendations.
 
 ## Models Performance
 `GET /models/performance`

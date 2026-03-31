@@ -13,22 +13,22 @@ const pipelineBlocks = [
   {
     icon: Database,
     title: "Step 1: Load Data",
-    detail: "We download a public heart-health dataset and map each column into the fields used in this app."
+    detail: "We download a public mushroom dataset and rename fields to readable names."
   },
   {
     icon: Settings2,
     title: "Step 2: Prepare Data",
-    detail: "Missing values are filled in, number fields are scaled when needed, and category fields are converted into values the model can read."
+    detail: "We clean category values and convert them into model-friendly numbers."
   },
   {
     icon: FlaskConical,
     title: "Step 3: Train and Test",
-    detail: "We train five model types, test them on unseen records, and save their score reports."
+    detail: "We train five models and test them on unseen data for a fair score."
   },
   {
     icon: GitBranch,
     title: "Step 4: Use In App",
-    detail: "The best model is used to calculate risk, explain key reasons, and suggest next steps."
+    detail: "The best model is used in the app to predict safety and explain why."
   }
 ];
 
@@ -42,15 +42,15 @@ export default function AboutPage() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />
-            How This Model Is Built
+            How This Model Works
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm leading-relaxed text-muted-foreground">
           <p>
-            This page explains where the model data comes from, how training is done, and which files store the final model.
+            This page explains where the data comes from, how the model is trained, and how predictions are made.
           </p>
           <p>
-            Training code is in <span className="font-mono">backend/app/ml/train.py</span>. Saved models and training details are in{" "}
+            For technical users: training code is in <span className="font-mono">backend/app/ml/train.py</span>. Saved models and details are in{" "}
             <span className="font-mono">backend/saved_models</span>.
           </p>
         </CardContent>
@@ -99,11 +99,11 @@ export default function AboutPage() {
                   <TableCell>{trainingSummary.data?.dataset_source ?? "Not available"}</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell className="font-medium">People in dataset</TableCell>
-                  <TableCell>{trainingSummary.data?.dataset_rows ?? "--"}</TableCell>
+                  <TableCell className="font-medium">Records in dataset</TableCell>
+                  <TableCell>{trainingSummary.data?.dataset_rows ?? "--"} mushroom records</TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell className="font-medium">Health fields used</TableCell>
+                  <TableCell className="font-medium">Input features used</TableCell>
                   <TableCell>{trainingSummary.data?.feature_count ?? "--"}</TableCell>
                 </TableRow>
                 <TableRow>
@@ -129,7 +129,7 @@ export default function AboutPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Health Field Reference</CardTitle>
+          <CardTitle>Feature Reference</CardTitle>
         </CardHeader>
         <CardContent>
           {featureInfo.isLoading ? (
@@ -138,7 +138,7 @@ export default function AboutPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Health field</TableHead>
+                  <TableHead>Feature</TableHead>
                   <TableHead>What it means</TableHead>
                 </TableRow>
               </TableHeader>

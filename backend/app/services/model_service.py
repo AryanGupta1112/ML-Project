@@ -72,7 +72,6 @@ class ModelService:
 
         array = np.asarray(shap_values)
         if array.ndim == 3:
-            # (samples, features, classes)
             return array[0, :, 1]
         if array.ndim == 2:
             return array[0]
@@ -83,11 +82,17 @@ class ModelService:
             return transformed_name.replace("num__", "", 1)
         if transformed_name.startswith("cat__"):
             raw = transformed_name.replace("cat__", "", 1)
-            for candidate in self.metadata["categorical_features"]:
+            for candidate in self.metadata.get("categorical_features", []):
                 if raw.startswith(f"{candidate}_") or raw == candidate:
                     return candidate
             return raw.split("_")[0]
         return transformed_name
+
+    def _row_feature_value(self, row_df: pd.DataFrame, feature: str) -> str | float | int:
+        value = row_df.iloc[0].to_dict().get(feature, "")
+        if isinstance(value, (str, int, float)):
+            return value
+        return str(value)
 
     def _explain_with_shap(self, pipeline: Any, row_df: pd.DataFrame) -> list[FeatureContribution]:
         preprocessor = pipeline.named_steps["preprocessor"]
@@ -99,7 +104,6 @@ class ModelService:
         transformed = np.asarray(transformed)
 
         feature_names = preprocessor.get_feature_names_out()
-
         explainer = shap.TreeExplainer(estimator)
         shap_values = explainer.shap_values(transformed)
         contrib_values = self._parse_shap_output(shap_values)
@@ -110,13 +114,11 @@ class ModelService:
             grouped[origin] = grouped.get(origin, 0.0) + float(val)
 
         ordered = sorted(grouped.items(), key=lambda kv: abs(kv[1]), reverse=True)[:5]
-        row = row_df.iloc[0].to_dict()
-
         return [
             FeatureContribution(
                 feature=feature,
-                feature_value=float(row[feature]) if feature in row else 0.0,
-                impact_score=round(float(abs(score)), 5),
+                feature_value=self._row_feature_value(row_df, feature),
+                impact_score=round(float(abs(score)), 6),
                 direction="increases" if score >= 0 else "decreases",
             )
             for feature, score in ordered
@@ -147,17 +149,34 @@ class ModelService:
             grouped[origin] = grouped.get(origin, 0.0) + float(val)
 
         ordered = sorted(grouped.items(), key=lambda kv: abs(kv[1]), reverse=True)[:5]
-        row = row_df.iloc[0].to_dict()
-
         return [
             FeatureContribution(
                 feature=feature,
-                feature_value=float(row[feature]) if feature in row else 0.0,
-                impact_score=round(float(abs(score)), 5),
+                feature_value=self._row_feature_value(row_df, feature),
+                impact_score=round(float(abs(score)), 6),
                 direction="increases" if score >= 0 else "decreases",
             )
             for feature, score in ordered
         ]
+
+    def _explain_from_value_rates(self, row_df: pd.DataFrame) -> list[FeatureContribution]:
+        rates_by_feature: dict[str, dict[str, float]] = self.metadata.get("feature_value_target_rate", {})
+        global_rate = float(self.metadata.get("target_positive_rate", 0.5))
+
+        contributions: list[FeatureContribution] = []
+        for feature in self.metadata.get("feature_columns", []):
+            value = str(self._row_feature_value(row_df, feature))
+            value_rate = float(rates_by_feature.get(feature, {}).get(value, global_rate))
+            delta = value_rate - global_rate
+            contributions.append(
+                FeatureContribution(
+                    feature=feature,
+                    feature_value=value,
+                    impact_score=round(abs(delta), 6),
+                    direction="increases" if delta >= 0 else "decreases",
+                )
+            )
+        return sorted(contributions, key=lambda item: item.impact_score, reverse=True)[:5]
 
     def explain(self, model_name: str, row_df: pd.DataFrame) -> list[FeatureContribution]:
         pipeline = self.models[model_name]
@@ -166,35 +185,43 @@ class ModelService:
             try:
                 return self._explain_with_shap(pipeline, row_df)
             except Exception:
-                return self._explain_with_coefficients(pipeline, row_df)
+                pass
 
         try:
             return self._explain_with_coefficients(pipeline, row_df)
         except Exception:
-            stats = self.metadata["feature_stats"]
-            contributions = []
-            for feature in self.metadata["feature_columns"]:
-                mean = float(stats[feature]["mean"])
-                value = float(row_df.iloc[0][feature])
-                delta = value - mean
-                contributions.append(
-                    FeatureContribution(
-                        feature=feature,
-                        feature_value=value,
-                        impact_score=round(abs(delta), 5),
-                        direction="increases" if delta >= 0 else "decreases",
-                    )
+            return self._explain_from_value_rates(row_df)
+
+    def _resolve_model_name(self, requested_model_name: str | None) -> str:
+        selected_model = (
+            requested_model_name
+            or (settings.inference_model_name.strip() if settings.inference_model_name else None)
+            or self.metadata.get("best_model")
+            or settings.default_model_name
+        )
+        if selected_model not in self.models:
+            raise ValueError(f"Model '{selected_model}' is not available")
+        return selected_model
+
+    def _build_reliability_warnings(self, payload: PatientInput) -> list[str]:
+        warnings: list[str] = []
+        value_frequencies: dict[str, dict[str, float]] = self.metadata.get("feature_value_frequencies", {})
+
+        for feature, value in payload.model_dump().items():
+            observed_ratio = float(value_frequencies.get(feature, {}).get(str(value), 0.0))
+            if observed_ratio <= 0.01:
+                warnings.append(
+                    f"Value '{value}' for {feature.replace('_', ' ')} appears in under 1% of training records. "
+                    "Prediction confidence may be lower."
                 )
-            return sorted(contributions, key=lambda item: item.impact_score, reverse=True)[:5]
+
+        return warnings
 
     def predict(self, payload: PatientInput, model_name: str | None = None) -> PredictionResponse:
         if not self.ready:
             self.ensure_ready()
 
-        selected_model = model_name or self.metadata.get("best_model", settings.default_model_name)
-        if selected_model not in self.models:
-            raise ValueError(f"Model '{selected_model}' is not available")
-
+        selected_model = self._resolve_model_name(model_name)
         row = pd.DataFrame([payload.model_dump()])
         pipeline = self.models[selected_model]
 
@@ -203,7 +230,8 @@ class ModelService:
         risk_score = probability_to_risk_score(probability)
         risk_level = risk_level_from_score(risk_score)
         top_factors = self.explain(selected_model, row)
-        recommendations = generate_recommendations(payload)
+        recommendations = generate_recommendations(payload, probability=probability)
+        warnings = self._build_reliability_warnings(payload)
 
         return PredictionResponse(
             prediction=prediction,
@@ -213,6 +241,7 @@ class ModelService:
             model_name=selected_model,
             top_factors=top_factors,
             recommendations=recommendations,
+            warnings=warnings,
         )
 
 
