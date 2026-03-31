@@ -28,6 +28,11 @@ set PYTHONPATH=.
 python -m app.ml.train
 ```
 
+Dataset sizing options (in `backend/.env`):
+- `DATASET_PROFILE=large` uses OpenML `BNG(heart-statlog)` (1,000,000 source rows).
+- `TRAINING_MAX_ROWS=15000` caps rows used for training to keep runtime practical.
+- `DATASET_PROFILE=standard` switches back to the classic smaller heart dataset.
+
 Artifacts are written to `backend/saved_models`:
 - `logistic_regression.joblib`
 - `decision_tree.joblib`

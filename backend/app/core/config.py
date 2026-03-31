@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     sqlite_url: str = f"sqlite:///{(BASE_DIR / 'data' / 'prediction_history.db').as_posix()}"
     default_model_name: str = "random_forest"
     auto_train_models: bool = True
+    dataset_profile: str = "large"
+    training_max_rows: int = 15000
+    large_dataset_data_id: int = 267
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",

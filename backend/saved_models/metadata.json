@@ -1,6 +1,8 @@
 {
-  "generated_at": "2026-03-30T17:33:57.712369+00:00",
-  "dataset_rows": 303,
+  "generated_at": "2026-03-31T12:05:30.907607+00:00",
+  "dataset_source": "BNG(heart-statlog)",
+  "dataset_rows_raw": 1000000,
+  "dataset_rows": 15000,
   "feature_columns": [
     "age",
     "sex",
@@ -33,133 +35,133 @@
     "ca",
     "thal"
   ],
-  "best_model": "logistic_regression",
+  "best_model": "svm",
   "metrics": {
     "logistic_regression": {
-      "accuracy": 0.8688524590163934,
-      "precision": 0.8571428571428571,
-      "recall": 0.9090909090909091,
-      "f1_score": 0.8823529411764706,
-      "roc_auc": 0.9101731601731602
+      "accuracy": 0.8743333333333333,
+      "precision": 0.8687258687258688,
+      "recall": 0.8445945945945946,
+      "f1_score": 0.8564902931100115,
+      "roc_auc": 0.9464261923794299
     },
     "decision_tree": {
-      "accuracy": 0.7868852459016393,
-      "precision": 0.7631578947368421,
-      "recall": 0.8787878787878788,
-      "f1_score": 0.8169014084507042,
-      "roc_auc": 0.7743506493506493
+      "accuracy": 0.8633333333333333,
+      "precision": 0.8647151898734177,
+      "recall": 0.8205705705705706,
+      "f1_score": 0.8420647149460708,
+      "roc_auc": 0.931186807310908
     },
     "random_forest": {
-      "accuracy": 0.7868852459016393,
-      "precision": 0.7631578947368421,
-      "recall": 0.8787878787878788,
-      "f1_score": 0.8169014084507042,
-      "roc_auc": 0.9004329004329005
+      "accuracy": 0.8816666666666667,
+      "precision": 0.8801556420233463,
+      "recall": 0.8490990990990991,
+      "f1_score": 0.8643484906381352,
+      "roc_auc": 0.9509984354858456
     },
     "knn": {
-      "accuracy": 0.7868852459016393,
-      "precision": 0.7631578947368421,
-      "recall": 0.8787878787878788,
-      "f1_score": 0.8169014084507042,
-      "roc_auc": 0.9090909090909091
+      "accuracy": 0.874,
+      "precision": 0.8828250401284109,
+      "recall": 0.8258258258258259,
+      "f1_score": 0.8533747090768037,
+      "roc_auc": 0.9358346656008526
     },
     "svm": {
-      "accuracy": 0.8360655737704918,
-      "precision": 0.8108108108108109,
-      "recall": 0.9090909090909091,
-      "f1_score": 0.8571428571428571,
-      "roc_auc": 0.9101731601731602
+      "accuracy": 0.8806666666666667,
+      "precision": 0.8775193798449612,
+      "recall": 0.8498498498498499,
+      "f1_score": 0.8634630053394355,
+      "roc_auc": 0.9513371284954019
     }
   },
   "feature_stats": {
     "age": {
-      "min": 29.0,
-      "max": 77.0,
-      "mean": 54.366336633663366,
+      "min": 28.930165,
+      "max": 77.125272,
+      "mean": 54.4332768792,
       "type": "numeric",
       "description": "Age in years"
     },
     "sex": {
       "min": 0.0,
       "max": 1.0,
-      "mean": 0.6831683168316832,
+      "mean": 0.6743333333333333,
       "type": "categorical",
       "description": "Sex (0 = female, 1 = male)"
     },
     "cp": {
       "min": 0.0,
       "max": 3.0,
-      "mean": 0.966996699669967,
+      "mean": 2.6926,
       "type": "categorical",
       "description": "Chest pain type (0-3)"
     },
     "trestbps": {
-      "min": 94.0,
-      "max": 200.0,
-      "mean": 131.62376237623764,
+      "min": 87.741106,
+      "max": 198.464294,
+      "mean": 131.55627759666666,
       "type": "numeric",
       "description": "Resting blood pressure in mm Hg"
     },
     "chol": {
-      "min": 126.0,
-      "max": 564.0,
-      "mean": 246.26402640264027,
+      "min": 121.356637,
+      "max": 527.712687,
+      "mean": 249.3920198506,
       "type": "numeric",
       "description": "Serum cholesterol in mg/dl"
     },
     "fbs": {
       "min": 0.0,
       "max": 1.0,
-      "mean": 0.1485148514851485,
+      "mean": 0.1534,
       "type": "categorical",
       "description": "Fasting blood sugar > 120 mg/dl (1 = true)"
     },
     "restecg": {
       "min": 0.0,
       "max": 2.0,
-      "mean": 0.528052805280528,
+      "mean": 1.0163333333333333,
       "type": "categorical",
       "description": "Resting electrocardiographic result (0-2)"
     },
     "thalach": {
-      "min": 71.0,
-      "max": 202.0,
-      "mean": 149.64686468646866,
+      "min": 64.057902,
+      "max": 207.383104,
+      "mean": 149.76911536286667,
       "type": "numeric",
       "description": "Maximum heart rate achieved"
     },
     "exang": {
       "min": 0.0,
       "max": 1.0,
-      "mean": 0.32673267326732675,
+      "mean": 0.33213333333333334,
       "type": "categorical",
       "description": "Exercise induced angina (1 = yes)"
     },
     "oldpeak": {
       "min": 0.0,
-      "max": 6.2,
-      "mean": 1.0396039603960396,
+      "max": 6.074758,
+      "mean": 1.0439522172,
       "type": "numeric",
       "description": "ST depression induced by exercise"
     },
     "slope": {
       "min": 0.0,
       "max": 2.0,
-      "mean": 1.3993399339933994,
+      "mean": 0.5971333333333333,
       "type": "categorical",
       "description": "Slope of peak exercise ST segment (0-2)"
     },
     "ca": {
       "min": 0.0,
-      "max": 4.0,
-      "mean": 0.7293729372937293,
+      "max": 3.0,
+      "mean": 0.6726,
       "type": "categorical",
       "description": "Major vessels colored by fluoroscopy (0-4)"
     },
     "thal": {
-      "min": 0.0,
+      "min": 1.0,
       "max": 3.0,
-      "mean": 2.3135313531353137,
+      "mean": 2.3232,
       "type": "categorical",
       "description": "Thalassemia category (0-3)"
     }

@@ -85,13 +85,16 @@ export default function ModelsPage() {
               <XAxis dataKey="model" />
               <YAxis domain={[0, 100]} />
               <Tooltip
-                formatter={(value: number, name: string) => {
+                formatter={(value, name) => {
                   const labels: Record<string, string> = {
                     accuracy: "Accuracy",
                     f1: "Balanced success score",
                     auc: "Model quality score"
                   };
-                  return [`${value}%`, labels[name] ?? name];
+                  const metricName = String(name);
+                  const numericValue = typeof value === "number" ? value : Number(value);
+                  const displayValue = Number.isFinite(numericValue) ? `${numericValue}%` : String(value);
+                  return [displayValue, labels[metricName] ?? metricName];
                 }}
               />
               <Legend

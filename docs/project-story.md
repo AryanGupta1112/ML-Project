@@ -20,8 +20,9 @@ Binary classification means the model predicts one of two outcomes:
 - `0` = lower/no significant risk
 
 ### Dataset
-- Source: OpenML heart disease dataset (version 1)
-- Rows: 303
+- Default source profile: OpenML `BNG(heart-statlog)` (very large source dataset)
+- Source rows (profile=large): 1,000,000
+- Training rows used by default: 15,000 (configurable cap for practical runtime)
 - Input features: 13
 - Numeric features: `age`, `trestbps`, `chol`, `thalach`, `oldpeak`
 - Categorical features: `sex`, `cp`, `fbs`, `restecg`, `exang`, `slope`, `ca`, `thal`

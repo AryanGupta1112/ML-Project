@@ -90,6 +90,12 @@ set PYTHONPATH=.
 python -m app.ml.train
 ```
 
+Default training profile is larger now:
+- `DATASET_PROFILE=large` -> OpenML `BNG(heart-statlog)` source
+- `TRAINING_MAX_ROWS=15000` -> practical cap for training runtime
+
+You can edit these in `backend/.env`.
+
 ### Run API
 ```bash
 cd backend

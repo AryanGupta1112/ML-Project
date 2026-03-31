@@ -64,6 +64,8 @@ FEATURE_DESCRIPTIONS = {
 class DatasetBundle:
     x: pd.DataFrame
     y: pd.Series
+    source_name: str
+    source_rows: int
 
 
 def _normalize_col(col: str) -> str:
@@ -72,6 +74,57 @@ def _normalize_col(col: str) -> str:
 
 def _safe_numeric(series: pd.Series) -> pd.Series:
     return pd.to_numeric(series, errors="coerce")
+
+
+def _map_thal_to_expected_scale(series: pd.Series) -> pd.Series:
+    rounded = series.round()
+    if rounded.dropna().empty:
+        return rounded
+
+    if rounded.min() >= 3:
+        legacy_codes = np.array([3.0, 6.0, 7.0], dtype=float)
+        legacy_to_expected = {3.0: 2.0, 6.0: 1.0, 7.0: 3.0}
+
+        def _nearest_legacy(value: float) -> float:
+            closest = legacy_codes[np.argmin(np.abs(legacy_codes - value))]
+            return legacy_to_expected[float(closest)]
+
+        return rounded.apply(lambda value: _nearest_legacy(float(value)) if pd.notna(value) else value)
+
+    return rounded.clip(0, 3)
+
+
+def _normalize_feature_values(frame: pd.DataFrame) -> pd.DataFrame:
+    normalized = frame.copy()
+
+    # Numeric fields: clip to medically reasonable ranges that match API validation.
+    normalized["age"] = normalized["age"].clip(18, 100)
+    normalized["trestbps"] = normalized["trestbps"].clip(80, 250)
+    normalized["chol"] = normalized["chol"].clip(80, 700)
+    normalized["thalach"] = normalized["thalach"].clip(60, 250)
+    normalized["oldpeak"] = normalized["oldpeak"].clip(0, 10)
+
+    # Categorical fields: round and map to the coding used by frontend/backend schemas.
+    normalized["sex"] = normalized["sex"].round().clip(0, 1)
+
+    cp = normalized["cp"]
+    if cp.dropna().min() >= 1 and cp.dropna().max() <= 4.5:
+        cp = cp - 1
+    normalized["cp"] = cp.round().clip(0, 3)
+
+    normalized["fbs"] = normalized["fbs"].round().clip(0, 1)
+    normalized["restecg"] = normalized["restecg"].round().clip(0, 2)
+    normalized["exang"] = normalized["exang"].round().clip(0, 1)
+
+    slope = normalized["slope"]
+    if slope.dropna().min() >= 1 and slope.dropna().max() <= 3.5:
+        slope = slope - 1
+    normalized["slope"] = slope.round().clip(0, 2)
+
+    normalized["ca"] = normalized["ca"].round().clip(0, 4)
+    normalized["thal"] = _map_thal_to_expected_scale(normalized["thal"])
+
+    return normalized
 
 
 def _binarize_target(target: pd.Series) -> pd.Series:
@@ -97,17 +150,23 @@ def _find_target_column(frame: pd.DataFrame) -> str:
 
 
 def load_heart_dataset() -> DatasetBundle:
-    fetch_attempts = [
-        {"name": "heart-disease", "version": 1},
-        {"name": "heart-statlog", "version": 1},
-        {"name": "HeartDisease", "version": 1},
-    ]
+    if settings.dataset_profile.lower() == "large":
+        fetch_attempts = [{"data_id": settings.large_dataset_data_id}]
+    else:
+        fetch_attempts = [
+            {"name": "heart-disease", "version": 1},
+            {"name": "heart-statlog", "version": 1},
+            {"name": "HeartDisease", "version": 1},
+        ]
 
     last_error: Exception | None = None
     bundle = None
+    source_name = "unknown"
     for kwargs in fetch_attempts:
         try:
             bundle = fetch_openml(as_frame=True, parser="auto", **kwargs)
+            details = getattr(bundle, "details", {}) or {}
+            source_name = str(details.get("name") or kwargs.get("name") or f"data_id={kwargs.get('data_id')}")
             break
         except Exception as exc:
             last_error = exc
@@ -129,25 +188,32 @@ def load_heart_dataset() -> DatasetBundle:
         "sex": "sex",
         "gender": "sex",
         "cp": "cp",
+        "chest": "cp",
         "chestpaintype": "cp",
         "trestbps": "trestbps",
         "restingbp": "trestbps",
         "restingbloodpressure": "trestbps",
         "chol": "chol",
         "cholesterol": "chol",
+        "serumcholestoral": "chol",
         "fbs": "fbs",
         "fastingbs": "fbs",
+        "fastingbloodsugar": "fbs",
         "restecg": "restecg",
+        "restingelectrocardiographicresults": "restecg",
         "thalach": "thalach",
         "maxhr": "thalach",
+        "maximumheartrateachieved": "thalach",
         "exang": "exang",
         "exerciseangina": "exang",
+        "exerciseinducedangina": "exang",
         "oldpeak": "oldpeak",
         "stdepression": "oldpeak",
         "slope": "slope",
         "stslope": "slope",
         "ca": "ca",
         "majorvessels": "ca",
+        "numberofmajorvessels": "ca",
         "thal": "thal",
     }
 
@@ -168,12 +234,24 @@ def load_heart_dataset() -> DatasetBundle:
     x = x[EXPECTED_FEATURES].copy()
     for feature in EXPECTED_FEATURES:
         x[feature] = _safe_numeric(x[feature])
+    x = _normalize_feature_values(x)
 
     valid_rows = y.notna()
     x = x[valid_rows]
     y = y[valid_rows]
 
-    return DatasetBundle(x=x, y=y)
+    source_rows = int(x.shape[0])
+    max_rows = int(settings.training_max_rows)
+    if max_rows > 0 and source_rows > max_rows:
+        x, _, y, _ = train_test_split(
+            x,
+            y,
+            train_size=max_rows,
+            random_state=42,
+            stratify=y,
+        )
+
+    return DatasetBundle(x=x, y=y, source_name=source_name, source_rows=source_rows)
 
 
 def _build_preprocessor(scale_numeric: bool) -> ColumnTransformer:
@@ -262,6 +340,8 @@ def train_and_save_models(output_dir: Path | None = None) -> dict[str, Any]:
 
     metadata = {
         "generated_at": datetime.now(timezone.utc).isoformat(),
+        "dataset_source": dataset.source_name,
+        "dataset_rows_raw": dataset.source_rows,
         "dataset_rows": int(dataset.x.shape[0]),
         "feature_columns": EXPECTED_FEATURES,
         "numeric_features": NUMERIC_FEATURES,

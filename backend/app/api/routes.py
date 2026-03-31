@@ -68,7 +68,7 @@ def model_training_summary() -> TrainingSummaryResponse:
             generated_at = None
 
     return TrainingSummaryResponse(
-        dataset_source="OpenML heart disease dataset (version 1)",
+        dataset_source=str(metadata.get("dataset_source", "OpenML heart disease dataset (version 1)")),
         dataset_rows=int(metadata.get("dataset_rows", 0)),
         feature_count=len(metadata.get("feature_columns", [])),
         numeric_feature_count=len(metadata.get("numeric_features", [])),
